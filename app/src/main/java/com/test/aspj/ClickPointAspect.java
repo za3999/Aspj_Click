@@ -9,10 +9,10 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 
-import java.lang.reflect.Method;
-
 @Aspect
 public class ClickPointAspect {
+
+    private final String TAG = getClass().getSimpleName();
 
     private static final int INTERVAL = 1000;
     private long lastClickTime;
@@ -32,33 +32,45 @@ public class ClickPointAspect {
 
     @Around("onclickMethod() || onLambdaClickMethod() || onClickIgnore()")
     public void aroundClickMethod(final ProceedingJoinPoint joinPoint) throws Throwable {
-        long time = System.currentTimeMillis();
+        logMethod(joinPoint);
+        checkClick(joinPoint);
+    }
+
+    private void logMethod(ProceedingJoinPoint joinPoint) {
         StringBuilder builder = new StringBuilder();
         Class clazz = joinPoint.getSignature().getDeclaringType();
-        builder.append("clazz:");
-        builder.append(clazz);
-        builder.append(",");
+        builder.append(clazz.getName());
+        builder.append(".");
         String methodName = joinPoint.getSignature().getName();
-        builder.append("methodName:");
         builder.append(methodName);
-        builder.append(",");
+        builder.append("(");
         Object[] args = joinPoint.getArgs();
-        for (Object arg : args) {
-            builder.append("arg:");
+        for (int i = 0; i < args.length; i++) {
+            Object arg = args[i];
             builder.append(arg.getClass().getName());
-            builder.append(",");
+            if (i < args.length - 1) {
+                builder.append(",");
+            }
         }
-        Log.d("TEST1", "message " + builder.toString());
+        builder.append(")");
+        Log.d(TAG, "method " + builder.toString());
+    }
+
+    private void checkClick(ProceedingJoinPoint joinPoint) throws Throwable {
+        long time = System.currentTimeMillis();
+        Object[] args = joinPoint.getArgs();
         if (args.length != 1 && !(args[0] instanceof View)) {
             joinPoint.proceed();
             return;
         }
-        if (time - lastClickTime > INTERVAL) {
+        View clickView = (View) args[0];
+        if (time - lastClickTime > INTERVAL || lastClick != clickView) {
             joinPoint.proceed();
         } else {
-            Log.d("TEST1", joinPoint.getSignature() + " ignore ");
+            Log.d(TAG, joinPoint.getSignature() + " ignore ");
         }
         lastClickTime = time;
+        lastClick = clickView;
     }
 
 }
